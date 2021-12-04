@@ -12,11 +12,16 @@ main = do
 
     let input = map (\x -> read x::Int) (popFirst wholeInput)
 
-    let winningBoardState = getWinningBoardState input drawnNumbers 0
+    let winningBoardN = getWinningBoardN input drawnNumbers 0
 
-    let unmarkedSum = sumUnmarked (fst winningBoardState) 0
-    let lastDrawnN = getEBeforeElem drawnNumbers (-1) (snd winningBoardState)
-    print (unmarkedSum * lastDrawnN)
+    let losingBoardState = getLosingBoard input drawnNumbers
+
+    let losingBoardWinningState = getWinningBoardState (fst losingBoardState) drawnNumbers 0
+
+    let losingBoardWinningN = getEBeforeElem drawnNumbers (-1) (snd losingBoardWinningState)
+    let unmarkedSum = sumUnmarked (fst losingBoardWinningState) 0
+    
+    print (unmarkedSum * losingBoardWinningN)
 
 getEBeforeElem :: [Int] -> Int -> Int -> Int
 getEBeforeElem (x:xs) previous n
@@ -48,6 +53,17 @@ sumUnmarked (x:xs) sum
 filterNumber :: [Int] -> Int -> [Int]
 filterNumber input n = map (\x -> if x /= n then x else -1) input
 
+getWinningBoardN :: [Int] -> [Int] -> Int -> Int
+getWinningBoardN boards (x:xs) i
+    | isWinningBoard (getBoard boards i) = i
+    | i == div (length boards) 25 = getWinningBoardN (filterNumber boards x) xs 0
+    | otherwise = getWinningBoardN boards (merge xs [x]) (i + 1)
+
+getNOfWinningBoards :: [Int] -> Int -> Int -> Int
+getNOfWinningBoards boards i n
+    | i == div (length boards) 25 = n
+    | otherwise = getNOfWinningBoards boards (i + 1) (if isWinningBoard (getBoard boards i) then n + 1 else n)
+
 getWinningBoardState :: [Int] -> [Int] -> Int -> ([Int], Int)
 getWinningBoardState boards (x:xs) i
     | isWinningBoard (getBoard boards i) = (getBoard boards i, head xs)
@@ -77,6 +93,20 @@ isWinningBoard :: [Int] -> Bool
 isWinningBoard board = not (null filteredRows || null (head filteredRows)) || not (null filteredColumns || null (head filteredColumns))
                        where filteredRows = filter isWinningRow (divideIntoRows board 0 [])
                              filteredColumns = filter isWinningRow (divideIntoColumns board 0 [])
+
+filterWinningBoards :: [Int] -> Int -> [Int]
+filterWinningBoards boards i
+    | i == div (length boards) 25 = boards
+    | otherwise = filterWinningBoards (if isWinningBoard (getBoard boards i) then removeBoardN boards i else boards) (if isWinningBoard (getBoard boards i) then 0 else i + 1)
+
+getLosingBoard :: [Int] -> [Int] -> ([Int], Int)
+getLosingBoard boards (x:xs)
+    | getNOfWinningBoards boards 0 0 == div (length boards) 25 - 1 = (filterWinningBoards boards 0, x)
+    | null xs = (boards, -1)
+    | otherwise = getLosingBoard (filterNumber boards x) xs
+
+removeBoardN :: [Int] -> Int -> [Int]
+removeBoardN boards n = filterIndexed (\x i -> not (i >= n * 25 && i < (n * 25) + 25)) boards
 
 filterIndexed :: (a -> Int -> Bool) -> [a] -> [a]
 filterIndexed p xs = [x|(x,i) <- zip xs [0..], p x i]
